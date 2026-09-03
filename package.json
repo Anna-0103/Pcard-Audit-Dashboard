@@ -13,6 +13,6 @@
     "better-sqlite3": "^11.8.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "openai": "^4.77.3"
+    "@google/genai": "^1.0.0"
   }
 }

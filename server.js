@@ -3,11 +3,11 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const Database = require("better-sqlite3");
-const OpenAI = require("openai");
+const { GoogleGenAI } = require("@google/genai");
 
 const app = express();
 const db = new Database(path.join(__dirname, "data", "pcards.db"), { readonly: true });
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: "32kb" }));
@@ -44,7 +44,7 @@ app.get("/api/search", (req, res) => {
 app.post("/api/ask", async (req, res) => {
   const question = String(req.body.question || "").trim();
   if (!question) return res.status(400).json({ error: "Ask a question about the P-card data." });
-  if (!openai) return res.status(503).json({ error: "The AI assistant is not configured. Add OPENAI_API_KEY to your hosting provider's secret settings." });
+  if (!gemini) return res.status(503).json({ error: "The AI assistant is not configured. Add GEMINI_API_KEY to your hosting provider's secret settings." });
 
   const tool = {
     type: "function",
@@ -53,25 +53,22 @@ app.post("/api/ask", async (req, res) => {
     parameters: {
       type: "object",
       properties: { sql: { type: "string", description: "A single SQLite SELECT statement." } },
-      required: ["sql"], additionalProperties: false
-    },
-    strict: true
-  };
-  const instructions = `You are an audit-data assistant. Answer only from the SQLite table pcards, whose columns are: ${columns.join(", ")}. Use the query_pcards tool before answering factual questions about transactions. Restrict to 2014 unless the user asks otherwise. Explain that flags are leads for follow-up, not proof of misconduct. Never request or reveal API keys.`;
-  try {
-    let response = await openai.responses.create({ model: process.env.OPENAI_MODEL || "gpt-5.6-sol", instructions, input: question, tools: [tool], store: false });
-    const calls = response.output.filter(item => item.type === "function_call" && item.name === "query_pcards");
-    for (const call of calls) {
-      const { sql } = JSON.parse(call.arguments);
-      const safeSql = readOnlySql(sql);
-      const rows = db.prepare(safeSql).all();
-      response = await openai.responses.create({
-        model: process.env.OPENAI_MODEL || "gpt-5.6-sol", instructions,
-        input: [{ type: "function_call_output", call_id: call.call_id, output: JSON.stringify({ sql: safeSql, row_count: rows.length, rows }) }],
-        previous_response_id: response.id, store: false
-      });
+      required: ["sql"]
     }
-    res.json({ answer: response.output_text || "No answer was returned." });
+  };
+  const instructions = `You are an audit-data assistant. Answer only from the SQLite table pcards, whose columns are: ${columns.join(", ")}. You MUST call query_pcards before answering factual questions about transactions. Restrict to 2014 unless the user asks otherwise. Explain that flags are leads for follow-up, not proof of misconduct. Never request or reveal API keys.`;
+  try {
+    const prompt = `${instructions}\n\nUser question: ${question}`;
+    const history = [{ type: "user_input", content: [{ type: "text", text: prompt }] }];
+    const first = await gemini.interactions.create({ model: process.env.GEMINI_MODEL || "gemini-3.7-flash", input: history, tools: [tool], store: false });
+    history.push(...first.steps);
+    const call = first.steps.find(step => step.type === "function_call" && step.name === "query_pcards");
+    if (!call) return res.json({ answer: first.output_text || "No answer was returned." });
+    const safeSql = readOnlySql(call.arguments.sql);
+    const rows = db.prepare(safeSql).all();
+    history.push({ type: "function_result", name: call.name, call_id: call.id, result: [{ type: "text", text: JSON.stringify({ sql: safeSql, row_count: rows.length, rows }) }] });
+    const final = await gemini.interactions.create({ model: process.env.GEMINI_MODEL || "gemini-3.7-flash", input: history, tools: [tool], store: false });
+    res.json({ answer: final.output_text || "No answer was returned." });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "The assistant could not complete that query. Try a more specific question." });
