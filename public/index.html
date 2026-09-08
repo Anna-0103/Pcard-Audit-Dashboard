@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OSU P-card Audit Workspace</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <p class="eyebrow">Internal audit workspace</p>
+      <h1>OSU P-card Audit</h1>
+      <p>Explore potential exceptions in purchasing-card transactions. Results are indicators for follow-up, not findings of misconduct.</p>
+    </header>
+    <main>
+      <div class="tabs" role="tablist" aria-label="Audit tools">
+        <button class="tab active" role="tab" aria-selected="true" aria-controls="ask-panel" id="ask-tab">Ask the database</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="dashboard-panel" id="dashboard-tab">Prohibited purchases</button>
+      </div>
+
+      <section id="ask-panel" class="panel" role="tabpanel" aria-labelledby="ask-tab">
+        <h2>Ask a question in plain language</h2>
+        <p>For example: “Which employees spent more than $10,000 in March 2014?” The AI creates a read-only query; the result remains subject to auditor review.</p>
+        <form id="ask-form">
+          <label for="question">Your audit question</label>
+          <textarea id="question" maxlength="500" required placeholder="Ask about transactions, vendors, employees, amounts, dates, or MCCs."></textarea>
+          <button type="submit">Ask question</button>
+        </form>
+        <div id="ask-message" class="message" aria-live="polite"></div>
+        <div id="ask-meta" class="meta"></div>
+        <div id="ask-results"></div>
+      </section>
+
+      <section id="dashboard-panel" class="panel hidden" role="tabpanel" aria-labelledby="dashboard-tab">
+        <h2>Search possible prohibited purchases</h2>
+        <p>Choose a year, select whether to inspect transaction descriptions or vendors, then enter a keyword. Suggested searches include <em>alcohol</em>, <em>gift</em>, <em>gas</em>, <em>post office</em>, and <em>membership</em>.</p>
+        <form id="dashboard-form" class="search-form">
+          <div><label for="year">Year</label><select id="year" required></select></div>
+          <div><label for="field">Search type</label><select id="field"><option value="description">Description search</option><option value="vendor">Vendor search</option></select></div>
+          <div class="wide"><label for="keyword">Keyword</label><input id="keyword" maxlength="80" required placeholder="e.g. alcohol or post office" /></div>
+          <button type="submit">Search transactions</button>
+        </form>
+        <div id="dashboard-message" class="message" aria-live="polite"></div>
+        <div id="dashboard-results"></div>
+      </section>
+    </main>
+    <template id="table-template"><div class="table-wrap"><table><thead></thead><tbody></tbody></table></div></template>
+    <script src="app.js"></script>
+  </body>
+</html>
