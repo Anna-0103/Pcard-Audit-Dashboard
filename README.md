@@ -37,7 +37,7 @@ Create a Node web service from this GitHub repository. Use `npm install` as the 
 ```text
 DATABASE_URL=your private Supabase session-pooler connection string
 GEMINI_API_KEY=your Gemini key
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
 Do not add `PORT`; Render supplies it automatically. The public website can query the private hosted database, but neither secret is sent to the browser.
